@@ -1,0 +1,101 @@
+% Configuración del puerto serial
+arduino = serial('COM4', 'BaudRate', 9600);
+fopen(arduino);
+
+%Se toman las transformadas
+file = csvread("dataEMGtargetnum.csv");
+
+FFT1 = file(:,1);
+FFT2 = file(:,2);
+FFT3 = file(:,3);
+FFT4 = file(:,4);
+FFT5 = file(:,5);
+FFT6 = file(:,6);
+FFT7 = file(:,7);
+
+target = file(:,8);
+
+[r, p] = size(file);
+
+suma1 = 0;
+suma = 0;
+
+%Parametros de ajuste de los pesos
+alfa1 = 0.00001;
+alfa2 = 0.00001;
+alfa3 = 0.00002;
+alfa = 0.3;
+%% Estructurade la red
+
+N1 = 21; %Capa de entrada
+N2 = 52; %Primer capa oculta
+N3 = 24; %Segunda capa oculta
+N4 = 1;  %Capa de salida
+
+%Pesos
+%W1 tiene el tamano de N1 multiplicado por N2
+W1 = randn(N1, N2);
+%W2 tiene el tamano de N2 multiplicado por N3
+W2 = randn(N2, N3);
+%W3 tiene el tamano de N3 multiplicado por N4
+W3 = randn(N3, N4);
+
+m4 = 3;
+
+Se = [];
+
+Se(1) = 0;
+
+grad1 = zeros(N1, 1);
+grad2 = zeros(N2, 1);
+grad3 = zeros(N3, 1);
+
+% Parametros de la funcion sigmoide, tienen que ser el numero de entradas
+
+% Para la funcion sigmoide 1
+a1 = ones(N1, 1);
+b1 = 0.1*ones(N1, 1);
+c1 = ones(N1, 1);
+d1 = ones(N1, 1);
+
+% Para la funcion sigmoide 2
+a2 = ones(N2, 1);
+b2 = 0.1*ones(N2, 1);
+c2 = ones(N2, 1);
+d2 = ones(N2, 1);
+
+% Para la funcion sigmoide 3
+a3 = ones(N3, 1);
+b3 = 0.1*ones(N3, 1);
+c3 = ones(N3, 1);
+d3 = ones(N3, 1);
+
+%Dentro de este ciclo for se realiza el movimiento de la ventana para ir
+%asignando los valores a cada una de las entradas, de manera que podamos
+%recorrernos a traves de todo el documento de los datos adquiridos
+for n = 2:1:length(file)-2
+
+    
+    
+    %Asignamos los valores de las transformadas de fourier a nuestras
+    %entradas
+    u1 = [FFT1(n,1),FFT2(n,1),FFT3(n,1),FFT4(n,1),FFT5(n,1),FFT6(n,1),FFT7(n,1)];
+    u2 = [FFT1(n + 1,1),FFT2(n + 1,1),FFT3(n + 1,1),FFT4(n + 1,1),FFT5(n + 1,1),FFT6(n + 1,1),FFT7(n + 1,1)];
+    u3 = [FFT1(n + 2,1),FFT2(n + 2,1),FFT3(n + 2,1),FFT4(n + 2,1),FFT5(n + 2,1),FFT6(n + 2,1),FFT7(n + 2,1)];
+    
+    %Vector para la primera capa de tamano 21
+    uA = [u1 u2 u3];
+
+    % Envío de los datos a Arduino
+    for i = 1:length(uA)
+        fprintf(arduino, '%d\n', uA(i));
+        pause(0.1);
+    end
+    
+    % Espera del valor de retorno de Arduino
+    valor_retorno = fscanf(arduino, '%d');
+end
+
+
+% Cierre del puerto serial
+fclose(arduino);
